@@ -126,7 +126,7 @@ Todas essas regras são garantidas no **servidor**, pelas regras do Firestore (v
 
 ### Instalar e iniciar
 
-O projeto já vem ligado ao Firebase do grupo: a configuração está em [`src/config/firebase.ts`](src/config/firebase.ts) e as regras já estão publicadas. **Não é preciso configurar nada no Firebase.**
+O projeto já vem ligado ao Firebase do projeto: a configuração está em [`src/config/firebase.ts`](src/config/firebase.ts) e as regras já estão publicadas. **Não é preciso configurar nada no Firebase.**
 
 ```bash
 npm install
