@@ -6,7 +6,7 @@ CheckPoint 3 · Mobile Application Development · FIAP
 
 | Nome | RM |
 |---|---|
-| _Lucca Ramos Mussumecci_ | _RM562027_ |
+| Lucca Ramos Mussumecci | RM562027 |
 
 ---
 
@@ -26,8 +26,8 @@ Não existe cadastro de "admin" pelo Console: os papéis são definidos **dentro
 
 | Papel | Quem é | O que pode fazer |
 |---|---|---|
-| **Admin da geladeira** | Quem criou a geladeira | Tudo de um membro, mais: ver/compartilhar o código, remover membros, jogar fora qualquer item e excluir a geladeira |
-| **Membro** | Quem entrou com o código de convite | Guardar, editar e tirar os próprios itens; avisar que um item sumiu; confessar; julgar confissões sobre os próprios itens; sair da geladeira |
+| **Admin da geladeira** | Quem criou a geladeira | Tudo de um membro, mais: remover membros, jogar fora qualquer item (faxina) e excluir a geladeira |
+| **Membro** | Quem entrou com o código de convite | Guardar, editar e tirar os próprios itens; avisar que um item sumiu; confessar; julgar confissões sobre os próprios itens; ver e enviar o código de convite; sair da geladeira |
 
 Uma pessoa pode participar de várias geladeiras (casa + trabalho, por exemplo) e ser admin de umas e membro de outras.
 
@@ -51,7 +51,7 @@ Uma pessoa pode participar de várias geladeiras (casa + trabalho, por exemplo) 
 **Itens**
 1. **Guardar** um item: nome, categoria (🥛🍱🍫🥤🍎🧀), validade (com atalhos "Hoje", "Amanhã", "+3 dias" e "+1 semana") e um recado opcional ("NÃO MEXA 😤").
 2. **Lista em tempo real** com filtros: *Na geladeira*, *Meus*, *Vencendo* e *Casos*. Cada item mostra quanto falta para vencer.
-3. **Editar** ou **tirar da geladeira** (só o dono).
+3. **Editar** ou **tirar da geladeira** (só o dono; o admin também pode jogar fora qualquer item).
 4. **"Sumiu!":** o dono avisa que o item desapareceu e ninguém assumiu. Vira um mistério 🕵️.
 5. **Confessar:** outra pessoa admite que comeu (pode deixar um recado: "amanhã compro outro 🙏").
 6. **Veredito:** o dono **perdoa** 😇 ou **cobra** 💸. O app avisa o dono quando há confissões esperando por ele.
@@ -77,9 +77,9 @@ Enquanto está em [na_geladeira] ou [sumiu], o dono pode tirar o item da lista.
 ### Regras de negócio
 
 - Só **membros** veem a geladeira e os itens dela.
-- Só o **dono do item** edita, avisa sumiço, apaga e dá o veredito.
+- Só o **dono do item** edita, avisa sumiço, apaga e dá o veredito. A exceção é o **admin**, que pode jogar fora qualquer item (faxina).
 - **Ninguém confessa pelo outro:** o culpado gravado é sempre quem está logado.
-- Depois de confessado, o item **não pode ser apagado pelo dono**, para o caso não "sumir" do Mural.
+- Depois de confessado, o item **não pode ser apagado pelo dono**, para o caso não "sumir" do Mural (só o admin, na faxina).
 - O **admin** não pode sair (só excluir a geladeira) e não pode ser removido.
 - Máximo de **30 membros** por geladeira.
 - O Mural usa a **semana ISO** (segunda a domingo) gravada no momento da confissão.
@@ -191,7 +191,7 @@ Use dois aparelhos/emuladores, ou saia e entre com outra conta.
 5. Ana vê o aviso "Alguém confessou sobre item seu!" → abre → **Cobrar** 💸.
 6. Os dois abrem o 🏆 **Mural da Vergonha**: Beto é o "👑 Rato de Geladeira".
 7. Ana guarda um chocolate e marca **"Sumiu!"** → o mural mostra 1 mistério aberto.
-8. Ana (admin) remove o Beto em 👥 → a tela do Beto mostra "Geladeira indisponível".
+8. Ana (admin) remove o Beto em 👥 → a geladeira some da lista do Beto (se ele estiver com ela aberta, aparece "Geladeira indisponível").
 
 ---
 
