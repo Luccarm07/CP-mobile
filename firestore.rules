@@ -1,0 +1,155 @@
+rules_version = '2';
+
+// Regras de segurança do "Quem Comeu Meu Iogurte?".
+// Cole este arquivo em Firestore Database > Regras no Console do Firebase e clique em Publicar.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- Funções auxiliares ----------
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+
+    function fridgePath(fid) { return /databases/$(database)/documents/fridges/$(fid); }
+    function invitePath(code) { return /databases/$(database)/documents/inviteCodes/$(code); }
+
+    function isMember(fid) {
+      return signedIn() && exists(fridgePath(fid)) && uid() in get(fridgePath(fid)).data.memberIds;
+    }
+    function isFridgeAdmin(fid) {
+      return signedIn() && exists(fridgePath(fid)) && get(fridgePath(fid)).data.ownerId == uid();
+    }
+    function validText(value, min, max) {
+      return value is string && value.trim().size() >= min && value.size() <= max;
+    }
+    function changedOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // ---------- Códigos de convite ----------
+    // Qualquer usuário logado pode consultar UM código (get), mas não listar todos.
+    match /inviteCodes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && code.matches('^[A-HJ-NP-Z2-9]{6}$')
+        && request.resource.data.keys().hasOnly(['fridgeId'])
+        && getAfter(fridgePath(request.resource.data.fridgeId)).data.ownerId == uid()
+        && getAfter(fridgePath(request.resource.data.fridgeId)).data.inviteCode == code;
+      allow update: if false;
+      allow delete: if isFridgeAdmin(resource.data.fridgeId);
+    }
+
+    // ---------- Geladeiras ----------
+    match /fridges/{fid} {
+      // Membros e nomes precisam estar sempre em sincronia
+      function membersConsistent(data) {
+        return data.members.keys().toSet() == data.memberIds.toSet()
+          && data.memberIds.toSet().size() == data.memberIds.size()
+          && data.ownerId in data.memberIds;
+      }
+
+      // Entrar: só se adicionar a si mesmo e provar que conhece o código
+      function isJoining() {
+        let before = resource.data;
+        let after = request.resource.data;
+        return !(uid() in before.memberIds)
+          && changedOnly(['memberIds', 'members', 'joinProof'])
+          && before.memberIds.size() < 30
+          && after.memberIds.toSet() == before.memberIds.toSet().union([uid()].toSet())
+          && after.members.diff(before.members).affectedKeys().hasOnly([uid()])
+          && validText(after.members[uid()], 1, 60)
+          && after.joinProof.diff(before.get('joinProof', {})).affectedKeys().hasOnly([uid()])
+          && after.joinProof[uid()] == before.inviteCode;
+      }
+
+      // Sair (membro comum) ou remover alguém (admin): tira exatamente uma pessoa
+      function isRemoving(memberId) {
+        let before = resource.data;
+        let after = request.resource.data;
+        return memberId in before.memberIds
+          && memberId != before.ownerId
+          && changedOnly(['memberIds', 'members'])
+          && after.memberIds.toSet() == before.memberIds.toSet().difference([memberId].toSet())
+          && after.members.diff(before.members).affectedKeys().hasOnly([memberId]);
+      }
+      function isLeavingOrRemoving() {
+        let removed = resource.data.memberIds.removeAll(request.resource.data.memberIds);
+        return removed.size() == 1
+          && (removed[0] == uid() || resource.data.ownerId == uid())
+          && isRemoving(removed[0]);
+      }
+
+      allow read: if signedIn() && uid() in resource.data.memberIds;
+
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['name', 'inviteCode', 'ownerId', 'memberIds', 'members', 'createdAt'])
+        && validText(request.resource.data.name, 1, 40)
+        && request.resource.data.ownerId == uid()
+        && request.resource.data.memberIds == [uid()]
+        && membersConsistent(request.resource.data)
+        && validText(request.resource.data.members[uid()], 1, 60)
+        && request.resource.data.createdAt == request.time
+        && getAfter(invitePath(request.resource.data.inviteCode)).data.fridgeId == fid;
+
+      allow update: if signedIn()
+        && membersConsistent(request.resource.data)
+        && (isJoining() || isLeavingOrRemoving());
+
+      allow delete: if signedIn() && resource.data.ownerId == uid();
+
+      // ---------- Itens ----------
+      match /items/{itemId} {
+        function validItem(data) {
+          return validText(data.name, 1, 40)
+            && data.category in ['laticinio', 'marmita', 'doce', 'bebida', 'fruta', 'outro']
+            && data.expiresOn is string && data.expiresOn.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+            && validText(data.note, 0, 120);
+        }
+        function isItemOwner() { return resource.data.ownerId == uid(); }
+
+        allow read: if isMember(fid);
+
+        allow create: if isMember(fid)
+          && request.resource.data.keys().hasOnly(['name', 'category', 'expiresOn', 'note', 'ownerId', 'ownerName', 'status', 'createdAt'])
+          && validItem(request.resource.data)
+          && request.resource.data.ownerId == uid()
+          && validText(request.resource.data.ownerName, 1, 60)
+          && request.resource.data.status == 'na_geladeira'
+          && request.resource.data.createdAt == request.time;
+
+        allow update: if isMember(fid) && (
+          // Dono edita o item enquanto ele está na geladeira
+          (isItemOwner() && resource.data.status == 'na_geladeira'
+            && changedOnly(['name', 'category', 'expiresOn', 'note'])
+            && validItem(request.resource.data))
+          ||
+          // Dono avisa que o item sumiu
+          (isItemOwner() && resource.data.status == 'na_geladeira'
+            && changedOnly(['status', 'missingAt'])
+            && request.resource.data.status == 'sumiu'
+            && request.resource.data.missingAt == request.time)
+          ||
+          // Outra pessoa confessa (o culpado é sempre quem está logado)
+          (!isItemOwner() && resource.data.status in ['na_geladeira', 'sumiu']
+            && changedOnly(['status', 'culpritId', 'culpritName', 'confession', 'confessedAt', 'confessedWeek'])
+            && request.resource.data.status == 'confessado'
+            && request.resource.data.culpritId == uid()
+            && validText(request.resource.data.culpritName, 1, 60)
+            && validText(request.resource.data.confession, 0, 140)
+            && request.resource.data.confessedAt == request.time
+            && request.resource.data.confessedWeek.matches('^[0-9]{4}-W[0-9]{2}$'))
+          ||
+          // Dono dá o veredito
+          (isItemOwner() && resource.data.status == 'confessado'
+            && changedOnly(['status', 'judgedAt'])
+            && request.resource.data.status in ['perdoado', 'cobrado']
+            && request.resource.data.judgedAt == request.time)
+        );
+
+        // Dono apaga enquanto não há confissão; o admin pode fazer faxina em qualquer item
+        allow delete: if (isMember(fid) && isItemOwner() && resource.data.status in ['na_geladeira', 'sumiu'])
+          || isFridgeAdmin(fid);
+      }
+    }
+  }
+}

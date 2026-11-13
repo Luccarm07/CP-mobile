@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Quem Comeu Meu Iogurte?",
+    "slug": "quem-comeu-meu-iogurte",
+    "scheme": "iogurte",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": { "supportsTablet": false, "bundleIdentifier": "br.com.fiap.iogurte" },
+    "android": {
+      "package": "br.com.fiap.iogurte",
+      "adaptiveIcon": {
+        "backgroundColor": "#FFF4E0",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": { "favicon": "./assets/favicon.png" },
+    "plugins": ["expo-router"]
+  }
+}
